@@ -1,9 +1,8 @@
 import { createStore } from "zustand/vanilla";
-import { createJSONStorage, devtools, persist } from "zustand/middleware";
+import { devtools } from "zustand/middleware";
 import { z } from "zod";
 import { jwtDecode } from "jwt-decode";
 import CookieService from "./cookie-service";
-import { omit } from "remeda";
 
 import { useStore } from "zustand";
 
@@ -40,52 +39,54 @@ export const decodeAccessToken = (accessToken: string) =>
 
 const authStore = createStore<AuthStore>()(
 	devtools(
-		persist(
-			(set, get) => ({
-				accessToken: undefined,
-				accessTokenData: undefined,
-				refreshToken: undefined,
+		(set, get) => ({
+			accessToken: undefined,
+			accessTokenData: undefined,
+			refreshToken: undefined,
 
-				actions: {
-					setAccessToken: (accessToken: string | undefined) => {
-						const accessTokenData = (() => {
-							try {
-								return accessToken ? decodeAccessToken(accessToken) : undefined;
-							} catch (error) {
-								console.error(error);
-								return undefined;
-							}
-						})();
-						set({
-							accessToken,
-							accessTokenData,
-						});
-					},
-					setRefreshToken: (refreshToken: string | undefined) =>
-						set({
-							refreshToken,
-						}),
-					init: () => {
-						const {setAccessToken, setRefreshToken} = get().actions;
-						setAccessToken(CookieService.get(ACCESS_TOKEN_KEY));
-						setRefreshToken(CookieService.get(REFRESH_TOKEN_KEY));
-					},
-					clearTokens: () =>
-						set({
-							accessToken: undefined,
-							accessTokenData: undefined,
-							refreshToken: undefined,
-						}),
+			// If you want to persist the store, omit the actions
+			/**
+			 * import { omit } from "remeda"
+			 * {
+			 * 		name: "auth-store",
+			 * 		storage: createJSONStorage(() => sessionStorage),
+			 * 		partialize: (state) => {
+			 * 			return omit(state, ["actions"]);
+			 * 		},
+			 * 	}
+			 */
+			actions: {
+				setAccessToken: (accessToken: string | undefined) => {
+					const accessTokenData = (() => {
+						try {
+							return accessToken ? decodeAccessToken(accessToken) : undefined;
+						} catch (error) {
+							console.error(error);
+							return undefined;
+						}
+					})();
+					set({
+						accessToken,
+						accessTokenData,
+					});
 				},
-			}),
-			{
-				name: "auth-store",
-				storage: createJSONStorage(() => sessionStorage),
-				partialize: (state) => {
-					return omit(state, ["actions"]);
+				setRefreshToken: (refreshToken: string | undefined) =>
+					set({
+						refreshToken,
+					}),
+				init: () => {
+					const {setAccessToken, setRefreshToken} = get().actions;
+					setAccessToken(CookieService.get(ACCESS_TOKEN_KEY));
+					setRefreshToken(CookieService.get(REFRESH_TOKEN_KEY));
 				},
-			}
-		),
+				clearTokens: () =>
+					set({
+						accessToken: undefined,
+						accessTokenData: undefined,
+						refreshToken: undefined,
+					}),
+			},
+		}),
 		{
 			name: "auth-store",
 			enabled: !import.meta.env.PROD,
